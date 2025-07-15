@@ -1,0 +1,22 @@
+on:
+  workflow_run:
+    workflows: ["<workflowname>"] #use this if you want to trigger a merge after another workflow runs
+    types:
+      - completed
+
+jobs:
+  create-pr:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create pull request from dev to prod
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          title: "Auto Merge from current branch to other branch"
+          body: "merging"
+          base: <currentbranch> #Branch you committed to originally
+          branch: <branchyouwanttopushto>  #branch you want to push to
+          delete-branch: false
