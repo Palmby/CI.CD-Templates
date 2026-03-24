@@ -1,0 +1,58 @@
+name: Upload Script to Azure Automation
+
+on:
+  push:
+    branches:
+      - prod
+    paths:
+      - '**/*.ps1'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.CLIENT }}
+          tenant-id: ${{ secrets.TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION }}
+          enable-AzPSSession: true
+
+      - name: Upload Runbook
+        shell: pwsh
+        env:
+          RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+          AUTOMATION_ACCOUNT: ${{ vars.AUTOMATION_ACCOUNT }}
+        run: |
+          $resourceGroup = $env:RESOURCE_GROUP
+          $automationAccount = $env:AUTOMATION_ACCOUNT
+
+          $scripts = Get-ChildItem -Filter *.ps1
+
+          foreach ($s in $scripts) {
+            $runbookName = $s.BaseName
+
+            Import-AzAutomationRunbook `
+              -ResourceGroupName $resourceGroup `
+              -AutomationAccountName $automationAccount `
+              -Name $runbookName `
+              -Path $s.FullName `
+              -Type PowerShell `
+              -Force
+
+            Publish-AzAutomationRunbook `
+              -ResourceGroupName $resourceGroup `
+              -AutomationAccountName $automationAccount `
+              -Name $runbookName
+          }
